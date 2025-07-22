@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Puerto Rico Business Leads Dashboard</title>
+    <!-- Chosen Palette: Calm Harmony -->
+    <!-- Application Structure Plan: The application is structured as a single-page dashboard. It features a header for branding, an introductory section providing context from the source report, a dedicated filter/search area for user interaction, and a main section displaying all consolidated leads in an interactive table. This design prioritizes user understanding and ease of navigation by allowing quick filtering and searching of a large dataset, directly addressing the user's need for an explorable lead list. The table also includes a copy-to-clipboard feature for phone numbers to streamline outreach. The new feature adds a modal for generating and copying personalized WhatsApp messages using the Gemini API. -->
+    <!-- Visualization & Content Choices: The core content, business leads, is presented as an interactive HTML table. This method is chosen for its directness in displaying structured, tabular data. Interactions include a category filter (dropdown) and a search bar (input field) to allow users to efficiently narrow down and find specific leads. A "Copy Phone" button is integrated into each row for immediate utility. Introductory and contextual text from the report's Executive Summary and Introduction sections are presented as static text blocks to provide necessary background. The new "Generate WhatsApp Message" button leverages the Gemini API to produce dynamic text content (WhatsApp message drafts) which are then displayed in a custom modal for easy review and copying. No charts (Chart.js or Plotly.js) or SVG graphics are used, as the primary goal is data presentation and interaction for lead generation, not complex data visualization. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F8F4E3; /* Light neutral background */
+            color: #333;
+        }
+        .container-wrapper {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        .header-bg {
+            background-color: #D4BBAA; /* Complementary header background */
+        }
+        .card {
+            background-color: #FFFFFF;
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* shadow-md */
+            padding: 1.5rem;
+        }
+        .btn-primary {
+            background-color: #A98C7B; /* Subtle accent color */
+            color: #FFFFFF;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem; /* rounded-lg */
+            transition: background-color 0.2s;
+            white-space: nowrap; /* Prevent button text from wrapping */
+        }
+        .btn-primary:hover {
+            background-color: #8C7364; /* Darker hover state */
+        }
+        .table-header {
+            background-color: #E6D8C6; /* Light complementary for table headers */
+        }
+        .table-row-even {
+            background-color: #FDFBF8; /* Slightly different background for readability */
+        }
+        .table-row-odd {
+            background-color: #FFFFFF;
+        }
+        /* Specific styling for table container to ensure responsiveness and prevent overflow */
+        .table-container {
+            overflow-x: auto; /* Allows horizontal scrolling for table on small screens */
+            width: 100%;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        table {
+            width: 100%;
+            min-width: 800px; /* Increased min-width to accommodate new button */
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid #E6D8C6;
+        }
+        th {
+            font-weight: 600;
+            color: #555;
+            white-space: nowrap; /* Prevent header text from wrapping */
+        }
+        td {
+            white-space: normal; /* Allow cell content to wrap */
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: #FFFFFF;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+        .modal-close-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #888;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #A98C7B;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .container-wrapper {
+                padding: 0.5rem;
+            }
+            th, td {
+                padding: 0.5rem 0.75rem;
+            }
+            .btn-primary {
+                padding: 0.4rem 0.8rem;
+                font-size: 0.75rem;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+    <header class="header-bg py-4 shadow-md">
+        <div class="container-wrapper text-center">
+            <h1 class="text-3xl font-bold text-white">Puerto Rico Business Leads</h1>
+            <p class="text-white text-opacity-80 mt-1">Strategic Contacts for Marketing Agencies</p>
+        </div>
+    </header>
+
+    <main class="flex-grow container-wrapper py-8">
+        <section class="mb-8 card">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-800">Welcome to Your Lead Dashboard</h2>
+            <p class="text-gray-700 leading-relaxed mb-4">
+                This interactive tool provides a strategic compilation of potential business contacts across Puerto Rico, meticulously curated to support your direct outreach efforts.
+                You'll find actionable contact information, with particular emphasis on phone numbers, across diverse sectors including healthcare, beauty and wellness, retail and e-commerce, and automotive.
+            </p>
+            <p class="text-gray-700 leading-relaxed">
+                Use the filters and search bar below to easily explore, interact with, and synthesize all key information. Each lead includes the business name, category, address, phone number, and concise calling notes to provide immediate context for initial contact.
+                Additionally, you can now generate personalized WhatsApp message drafts for each lead using the power of AI!
+            </p>
+        </section>
+
+        <section class="mb-8 card">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-800">Find Your Next Client</h2>
+            <div class="flex flex-col sm:flex-row gap-4 mb-6">
+                <div class="flex-1">
+                    <label for="categoryFilter" class="block text-sm font-medium text-gray-700 mb-1">Filter by Category:</label>
+                    <select id="categoryFilter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md shadow-sm">
+                        <option value="All">All Categories</option>
+                        <option value="Doctor Office">Doctor Office</option>
+                        <option value="Dentist">Dentist</option>
+                        <option value="Hair Salon">Hair Salon</option>
+                        <option value="Hair Salon & Spa">Hair Salon & Spa</option>
+                        <option value="Resort Spa">Resort Spa</option>
+                        <option value="Day Spa">Day Spa</option>
+                        <option value="Nail Salon">Nail Salon</option>
+                        <option value="Nail Salon / Beauty Lounge">Nail Salon / Beauty Lounge</option>
+                        <option value="Hair & Nail Salon">Hair & Nail Salon</option>
+                        <option value="Nail Salon & Spa">Nail Salon & Spa</option>
+                        <option value="Online Clothing Brand">Online Clothing Brand</option>
+                        <option value="Online Grocery Store">Online Grocery Store</option>
+                        <option value="E-commerce Solutions / Telecom">E-commerce Solutions / Telecom</option>
+                        <option value="E-commerce / POS Solutions">E-commerce / POS Solutions</option>
+                        <option value="Online Retail (Home Goods)">Online Retail (Home Goods)</option>
+                        <option value="Business Directory / Wholesale">Business Directory / Wholesale</option>
+                        <option value="Clothing Brand (Vintage/Curated)">Clothing Brand (Vintage/Curated)</option>
+                        <option value="Clothing Brand (Fair Trade/Sustainable)">Clothing Brand (Fair Trade/Sustainable)</option>
+                        <option value="Clothing Brand (Slow Fashion)">Clothing Brand (Slow Fashion)</option>
+                        <option value="Clothing Brand (Resort Wear)">Clothing Brand (Resort Wear)</option>
+                        <option value="Clothing Brand (Sustainable Fabrics)">Clothing Brand (Sustainable Fabrics)</option>
+                        <option value="Boutique (Independent Designers)">Boutique (Independent Designers)</option>
+                        <option value="Concept Store (Fashion/Art)">Concept Store (Fashion/Art)</option>
+                        <option value="Silk Screening House & Retail">Silk Screening House & Retail</option>
+                        <option value="Women's Clothing / Accessories">Women's Clothing / Accessories</option>
+                        <option value="Furniture Retailer">Furniture Retailer</option>
+                        <option value="Home Decor / Furniture">Home Decor / Furniture</option>
+                        <option value="Independent Furniture Store">Independent Furniture Store</option>
+                        <option value="Car Dealership (BMW)">Car Dealership (BMW)</option>
+                        <option value="Car Dealership (Multi-brand)">Car Dealership (Multi-brand)</option>
+                        <option value="Car Dealership (Honda)">Car Dealership (Honda)</option>
+                        <option value="Car Dealership (Toyota)">Car Dealership (Toyota)</option>
+                        <option value="Car Dealership">Car Dealership</option>
+                        <option value="Car Dealership (Used Cars)">Car Dealership (Used Cars)</option>
+                        <option value="Car Dealership (Infiniti)">Car Dealership (Infiniti)</option>
+                        <option value="Car Dealership (Chrysler)">Car Dealership (Chrysler)</option>
+                        <option value="Car Dealership (Mitsubishi)">Car Dealership (Mitsubishi)</option>
+                        <!-- Add all unique categories from your data here -->
+                    </select>
+                </div>
+                <div class="flex-1">
+                    <label for="searchBar" class="block text-sm font-medium text-gray-700 mb-1">Search by Business Name:</label>
+                    <input type="text" id="searchBar" placeholder="Type to search..." class="mt-1 block w-full pl-3 pr-3 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md shadow-sm">
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table id="leadsTable" class="w-full text-sm text-left text-gray-600">
+                    <thead class="table-header">
+                        <tr>
+                            <th scope="col" class="py-3 px-4">Business Name</th>
+                            <th scope="col" class="py-3 px-4">Category</th>
+                            <th scope="col" class="py-3 px-4">Address</th>
+                            <th scope="col" class="py-3 px-4">Phone Number</th>
+                            <th scope="col" class="py-3 px-4">Calling Notes</th>
+                            <th scope="col" class="py-3 px-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leadsTableBody">
+                        <!-- Leads will be dynamically inserted here -->
+                    </tbody>
+                </table>
+            </div>
+            <div id="noResults" class="hidden text-center py-8 text-gray-500">No leads found matching your criteria.</div>
+        </section>
+    </main>
+
+    <footer class="header-bg py-4 mt-8">
+        <div class="container-wrapper text-center text-white text-opacity-80 text-sm">
+            &copy; 2024 Puerto Rico Business Leads. All rights reserved.
+        </div>
+    </footer>
+
+    <!-- WhatsApp Message Modal -->
+    <div id="whatsappModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button class="modal-close-btn" onclick="hideWhatsAppModal()">&times;</button>
+            <h3 class="text-xl font-semibold mb-4 text-gray-800">Generated WhatsApp Message ✨</h3>
+            <div id="loader" class="loader hidden"></div>
+            <textarea id="whatsappMessageTextarea" class="w-full h-48 p-3 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-700" readonly></textarea>
+            <button class="btn-primary mt-4 w-full" onclick="copyToClipboard('whatsappMessageTextarea')">Copy Message</button>
+        </div>
+    </div>
+
+    <script>
+        const leadsData = [
+            { "Business Name": "Metro Pavia Clinic Arecibo", "Category": "Doctor Office", "Address": "Zona Industrial Victor Rojas 2, Arecibo", "Phone Number": "787-650-0020", "Calling Notes": "Discuss patient acquisition strategies for specialized procedures." },
+            { "Business Name": "Grp Clinica Las Americas Guaynabo Dba Salus", "Category": "Doctor Office", "Address": "Salus Ave Casa Linda 1 Ste 101 Carr 177 Los Filtros, Bayamón", "Phone Number": "787-789-1919", "Calling Notes": "Offer integrated marketing for diverse medical services." },
+            { "Business Name": "Salus Hato Rey", "Category": "Doctor Office", "Address": "400 Franklin D Roosevelt Ste 103, San Juan", "Phone Number": "787-789-1996", "Calling Notes": "Propose digital patient engagement platforms." },
+            { "Business Name": "Agosto Mujica, Anardi", "Category": "Doctor Office", "Address": "Condado Tower 1474 Ave Wilson Ste 401, San Juan", "Phone Number": "787-635-4374", "Calling Notes": "Explore campaigns for seasonal allergy awareness." },
+            { "Business Name": "Torres Vera, Luis", "Category": "Doctor Office", "Address": "F24 Ave Pino, Caguas", "Phone Number": "787-744-9350", "Calling Notes": "Suggest online booking and patient portal integration." },
+            { "Business Name": "Ramos Romey, Cristina J", "Category": "Doctor Office", "Address": "Ashford Medical Center 29 Ave Ashford Ste 702, San Juan", "Phone Number": "787-999-0181", "Calling Notes": "Discuss reputation management for specialist services." },
+            { "Business Name": "Centro Cirugia Amb Las Americas", "Category": "Doctor Office", "Address": "400 Fd Roosevelt Ave Ste 301, San Juan", "Phone Number": "787-756-8418", "Calling Notes": "Focus on promoting specialized surgical procedures." },
+            { "Business Name": "Bravo Gonzalez, Hector M", "Category": "Doctor Office", "Address": "Clinica De Audiologia 51 Maria Cadilla, Arecibo", "Phone Number": "787-878-0933", "Calling Notes": "Offer campaigns for hearing aid services or audiological testing." },
+            { "Business Name": "Santiago De Synder, Soami", "Category": "Doctor Office", "Address": "Caparra Building 107 Gonzalez Giusti Ave Ste 201, Guaynabo", "Phone Number": "787-707-0020", "Calling Notes": "Propose patient education on hearing health." },
+            { "Business Name": "Ramos Gonzalez, Rigoberto", "Category": "Doctor Office", "Address": "Torre San Cristobal, Ponce", "Phone Number": "787-840-8876", "Calling Notes": "Discuss strategies for attracting new cardiology patients." },
+            { "Business Name": "Altieri Nieto, Pablo I", "Category": "Doctor Office", "Address": "Ctro Cardiovascular Pr Y El Caribe Ctro Medico Ave Americo Miranda, San Juan", "Phone Number": "787-754-8500", "Calling Notes": "Offer digital campaigns for heart health awareness." },
+            { "Business Name": "FHN PERIODONTICS LLC", "Category": "Dentist", "Address": "201 AVE DOMENECH, SAN JUAN, PR 00918", "Phone Number": "(787) 753-1419", "Calling Notes": "Accepting Delta Dental PPO/Premier. Focus on specialized patient acquisition." },
+            { "Business Name": "ALMODOVAR COLON RICARDO J", "Category": "Dentist", "Address": "201 DOMENECH HATO REY, PR 00918", "Phone Number": "(787) 753-1419", "Calling Notes": "Accepting Delta Dental PPO/Premier. Discuss online presence for specialty." },
+            { "Business Name": "ALONSO ALONSO JORGE", "Category": "Dentist", "Address": "EL CENTRO 1 LOC 12, SAN JUAN, PR 00918", "Phone Number": "(787) 763-8063", "Calling Notes": "Accepting Delta Dental PPO/Premier. Propose family dentistry campaigns." },
+            { "Business Name": "ECHAVARRY DIAZ DAVID R", "Category": "Dentist", "Address": "ASOCIACION MAESTROS PR, SAN JUAN, PR 00919", "Phone Number": "(787) 771-1600", "Calling Notes": "Accepting Delta Dental PPO/Premier. Suggest local SEO for general practice." },
+            { "Business Name": "DE JESUS VINAS JAIME", "Category": "Dentist", "Address": "293 ISMAEL COLON, SAN JUAN, PR 00918", "Phone Number": "(787) 756-5912", "Calling Notes": "Accepting Delta Dental PPO/Premier. Offer social media for aesthetic treatments." },
+            { "Business Name": "IGLESIAS CACHO NORMA A", "Category": "Dentist", "Address": "EDIF PLAZA SUITE 1835, SAN JUAN, PR 00918", "Phone Number": "(939) 633-6062", "Calling Notes": "Accepting Delta Dental PPO/Premier. Discuss patient retention strategies." },
+            { "Business Name": "OFERRAL GIL DARIENNE M", "Category": "Dentist", "Address": "315 AVE DOMENECH, SAN JUAN, PR 00918", "Phone Number": "(787) 754-0600", "Calling Notes": "Accepting Delta Dental PPO/Premier. Explore patient referral programs." },
+            { "Business Name": "JCPenney San Juan-Sur Salon", "Category": "Hair Salon", "Address": "Plaza Las Americas S/C, San Juan 00918, PR", "Phone Number": "(787) 274-3270", "Calling Notes": "Discuss local SEO and promotions for a chain salon." },
+            { "Business Name": "Beyond Salón", "Category": "Hair Salon", "Address": "1400 Magdalena Ave, San Juan", "Phone Number": "+1 7877224603", "Calling Notes": "Offer social media content strategy for an independent salon." },
+            { "Business Name": "D`glenys Mediterranean Salon & Spa", "Category": "Hair Salon & Spa", "Address": "460 Av. Lic. Eugenio María de Hostos, San Juan", "Phone Number": "+1 7872004612", "Calling Notes": "Propose integrated marketing for hair and spa services." },
+            { "Business Name": "Smartstyle Hair Salon (San Juan)", "Category": "Hair Salon", "Address": "701 Roberto H Todd Avenue Located Inside Walmart #5803, San Juan", "Phone Number": "+1 7879455500", "Calling Notes": "Suggest localized advertising within a retail environment." },
+            { "Business Name": "Rizocultura", "Category": "Hair Salon", "Address": "322 Avenida José de Diego, San Juan", "Phone Number": "+1 8134584565", "Calling Notes": "Focus on promoting specialized hair treatments." },
+            { "Business Name": "Cloud Spa", "Category": "Hair Salon & Spa", "Address": "Gallery Plaza, 103 de Diego Ave 5th floor, San Juan", "Phone Number": "+1 9392040496", "Calling Notes": "Discuss digital marketing for a high-end salon/spa." },
+            { "Business Name": "Supercuts (Ponce)", "Category": "Hair Salon", "Address": "PR2 & PR10, C. Baramaya, Ponce", "Phone Number": "+1 7872903077", "Calling Notes": "Explore local visibility and customer loyalty programs for a chain." },
+            { "Business Name": "Om Studio", "Category": "Hair Salon", "Address": "1353 Av. Juan Ponce de León, San Juan", "Phone Number": "+1 7877286015", "Calling Notes": "Offer online booking optimization and client engagement." },
+            { "Business Name": "Hairclub", "Category": "Hair Salon", "Address": "Centro Internacional de Mercadeo Torre 2, 90 Carr 165, Suite 507, Guaynabo", "Phone Number": "+1 7873042044", "Calling Notes": "Propose targeted campaigns for hair restoration services." },
+            { "Business Name": "Ritz-Carlton Spa Botanico", "Category": "Resort Spa", "Address": "Dorado Beach Resort, Dorado, PR", "Phone Number": "787-278-7227", "Calling Notes": "Luxury resort spa, discuss targeting high-end tourists and unique experiences." },
+            { "Business Name": "Elemara Spa & Salon at La Concha Resort", "Category": "Resort Spa & Salon", "Address": "1077 Ashford Ave Suite Tower, San Juan, 00907, Puerto Rico", "Phone Number": "787-977-3392", "Calling Notes": "Propose marketing for integrated spa and salon services within a luxury hotel setting." },
+            { "Business Name": "The Rainforest Spa at Hyatt Regency Grand Reserve Puerto Rico", "Category": "Resort Spa", "Address": "200 Coco Beach Blvd. Highway 955-I, Rio Grande, PR 00745", "Phone Number": "+1 787 657 1234, EXT 4400/4401", "Calling Notes": "Focus on wellness tourism and resort package integration." },
+            { "Business Name": "Spa at El Conquistador Resort", "Category": "Resort Spa", "Address": "1000 El Conquistador Avenue, Fajardo, PR 00738", "Phone Number": "787-863-1000 (Ext 7575)", "Calling Notes": "Suggest promoting diverse massage and skincare treatments to resort guests." },
+            { "Business Name": "Iridium Spa at The St. Regis Bahia Beach Resort, Puerto Rico", "Category": "Resort Spa", "Address": "Route 187 Kilometer 4.2, Rio Grande, PR 00745", "Phone Number": "787-809-8000", "Calling Notes": "Target luxury clientele; emphasize exclusive treatments and serene environment." },
+            { "Business Name": "The Spa at Condado Vanderbilt Hotel", "Category": "Hotel Spa", "Address": "1055 Ashford Avenue, San Juan, PR 00907", "Phone Number": "787-721-5500", "Calling Notes": "Discuss promoting exclusive spa treatments and fitness amenities." },
+            { "Business Name": "ZEN SPA Condado", "Category": "Day Spa", "Address": "1054 Ashford Ave., San Juan, PR 00907", "Phone Number": "(787) 722-8433", "Calling Notes": "Local day spa, focus on community engagement and recurring visits." },
+            { "Business Name": "Revamp Nail Lounge & More", "Category": "Nail Salon / Beauty Lounge", "Address": "6150 Av. Isla Verde, Carolina, PR 00979", "Phone Number": "787-595-0754", "Calling Notes": "Offer marketing for full beauty service offerings (nails, hair, spa)." },
+            { "Business Name": "Pink Me Up Salon", "Category": "Nail Salon", "Address": "Calle Haiti BK-1, Bayamón, PR 00956", "Phone Number": "(Not available in snippet)", "Calling Notes": "Discuss online booking optimization and showcasing service variety." },
+            { "Business Name": "Kikasnailssalon", "Category": "Nail Salon", "Address": "AD-1 Calle 30 reparto Santa Teresita, Bayamón, PR 00961", "Phone Number": "787-344-5162", "Calling Notes": "Propose social media campaigns for specialized nail services." },
+            { "Business Name": "Essence Hair & Nails Studio", "Category": "Hair & Nail Salon", "Address": "Calle 33, Local 1, Bayamón, PR 00957", "Phone Number": "(Not available in snippet)", "Calling Notes": "Suggest integrated marketing for hair and nail services." },
+            { "Business Name": "The Nail Studio By Yirmari", "Category": "Nail Salon", "Address": "Carr 802 k.m 5.4, Naranjito, Corozal, PR 00783", "Phone Number": "(Not available in snippet)", "Calling Notes": "Focus on promoting unique nail art and extension services." },
+            { "Business Name": "Miss Pink Gel Bar", "Category": "Nail Salon", "Address": "1452 Cond. Ada Ligia Ashford Ave, Suite 306, San Juan, PR 00907", "Phone Number": "(Not available in snippet)", "Calling Notes": "Emphasize gel manicure promotions and customer reviews." },
+            { "Business Name": "Aleja's Nails Polish", "Category": "Nail Salon", "Address": "Calle Arzuaga 157, San Juan, PR 00925", "Phone Number": "(Not available in snippet)", "Calling Notes": "Discuss online workshops and educational content marketing." },
+            { "Business Name": "Vanite Nail Studio", "Category": "Nail Salon", "Address": "929 Calle Durbec, Vanite Nail Studio, San Juan, PR 00924", "Phone Number": "(Not available in snippet)", "Calling Notes": "Highlight spa pedicure and package deals marketing." },
+            { "Business Name": "Regal Nails Salon & Spa", "Category": "Nail Salon & Spa", "Address": "Inside Walmart Supercenter, C. Baramaya, Suite 100, Ponce, PR 00728", "Phone Number": "(787) 844-5055", "Calling Notes": "Suggest in-store promotions and digital visibility for a retail location." },
+            { "Business Name": "Hello Nails", "Category": "Nail Salon", "Address": "(Not specified in snippet)", "Phone Number": "787-492-0560", "Calling Notes": "Offer text message marketing and online booking integration." },
+            { "Business Name": "Panevo Brand", "Category": "Online Clothing Brand", "Address": "14532 Windigo Ln, Orlando Florida 32828, United States (HQ)", "Phone Number": "+19396443104", "Calling Notes": "Online brand, focus on e-commerce optimization, digital advertising, and social media engagement." },
+            { "Business Name": "Antojo Boricua", "Category": "Online Grocery Store", "Address": "P.O. BOX 261832, San Juan, PR 00926", "Phone Number": "(Not directly listed, multiple digital contacts)", "Calling Notes": "Online grocery, propose digital marketing for product visibility and customer retention." },
+            { "Business Name": "WorldNet", "Category": "E-commerce Solutions / Telecom", "Address": "Suite 201, Torre II (Physical Address Not Fully Specified)", "Phone Number": "787-705-9000", "Calling Notes": "B2B service, offer digital marketing to attract e-commerce clients." },
+            { "Business Name": "Brava POS", "Category": "E-commerce / POS Solutions", "Address": "#29 Calle Maceo, Bayamón, PR", "Phone Number": "787-488-4212", "Calling Notes": "B2B service, focus on digital lead generation for POS systems." },
+            { "Business Name": "Aliss Puerto Rico", "Category": "Online Retail (Home Goods)", "Address": "Cataño Warehouse / Galeria Paseos (Pickup Locations)", "Phone Number": "(787) 795-4900", "Calling Notes": "Large online retailer, discuss e-commerce performance and digital campaigns." },
+            { "Business Name": "Puerto Rico Business Directory", "Category": "Business Directory / Wholesale", "Address": "PO Box 11848, San Juan, PR 00922", "Phone Number": "787-622-2937", "Calling Notes": "B2B service, propose marketing solutions for business directory services." },
+            { "Business Name": "AIDA", "Category": "Clothing Brand (Vintage/Curated)", "Address": "San Juan, PR (Studio)", "Phone Number": "maru@holaaida.co (email)", "Calling Notes": "Discuss digital strategy for vintage fashion and circular economy promotion." },
+            { "Business Name": "CONCALMA", "Category": "Clothing Brand (Fair Trade/Sustainable)", "Address": "(Not specified in snippet)", "Phone Number": "(787) 342-9757", "Calling Notes": "Propose content marketing around ethical production and local manufacturing." },
+            { "Business Name": "ISLEÑAS", "Category": "Clothing Brand (Slow Fashion)", "Address": "58 Calle Taft, San Juan (Condado)", "Phone Number": "hello@lasislenas.com (email)", "Calling Notes": "Suggest campaigns promoting slow fashion and modernizing local sewing industry." },
+            { "Business Name": "MARIMU", "Category": "Clothing Brand (Resort Wear)", "Address": "(Not specified in snippet)", "Phone Number": "+1 (787)247-6005", "Calling Notes": "Offer digital marketing for handcrafted resort wear and local talent support." },
+            { "Business Name": "MUNS", "Category": "Clothing Brand (Sustainable Fabrics)", "Address": "201 calle Luna, Viejo San Juan, San Juan, PR 00887", "Phone Number": "(939) 245-5946", "Calling Notes": "Discuss \"less is more\" concept marketing and sustainable fashion." },
+            { "Business Name": "SALLY TORRES VEGA", "Category": "Clothing Brand", "Address": "Cidra, Puerto Rico (Studio)", "Phone Number": "7872159567", "Calling Notes": "Propose brand storytelling for timeless, ethically made garments." },
+            { "Business Name": "LUCA / UNIVERSO LUCA", "Category": "Boutique (Independent Designers)", "Address": "750 Ave. Fernandez Juncos, San Juan PR, 00907", "Phone Number": "(787) 525-8291", "Calling Notes": "Suggest marketing for curated selection of independent designers." },
+            { "Business Name": "Love is You & Me", "Category": "Concept Store (Fashion/Art)", "Address": "110 Calle Del Parque STE Gb, San Juan, PR 00911-1903", "Phone Number": "(787) 503-3004", "Calling Notes": "Offer marketing for creative expression and personal style-focused retail." },
+            { "Business Name": "The Uncharted Studio", "Category": "Silk Screening House & Retail", "Address": "6 Calle Sol, Rincón, PR 00677", "Phone Number": "(939) 200-6808", "Calling Notes": "Discuss eco-minded product promotion and local Rincon brand identity." },
+            { "Business Name": "Pure Soul Boutique", "Category": "Women's Clothing / Accessories", "Address": "258 C. de San Justo, San Juan, PR 00901", "Phone Number": "+1 6467-062-502", "Calling Notes": "Propose lifestyle marketing for chic tropical fashion and unique accessories." },
+            { "Business Name": "Walmart Supercenter #5803", "Category": "Furniture Retailer", "Address": "701 Avenida Roberto H Todd, San Juan, PR 00907", "Phone Number": "787-641-5600", "Calling Notes": "Large retailer, discuss digital advertising for furniture sections and in-store promotions." },
+            { "Business Name": "HomeGoods San Juan", "Category": "Home Decor / Furniture", "Address": "Monte Hiedra Town Center, Los Romeros Ave at Montehiedra Ave, San Juan, PR 00926", "Phone Number": "787-720-8980", "Calling Notes": "Suggest local SEO and social media to highlight unique and changing inventory." },
+            { "Business Name": "HomeGoods Caparra Heights", "Category": "Home Decor / Furniture", "Address": "Caparra Shopping Center, FD Roosevelt Ave, Caparra Heights, PR 00968", "Phone Number": "(787) 782-7878", "Calling Notes": "Propose geo-targeted ads to attract customers from nearby areas." },
+            { "Business Name": "Rooms To Go Hatillo Showroom", "Category": "Furniture Retailer", "Address": "PLAZA DEL NORTE SHOPPING CTR, Hatillo, PR 00659", "Phone Number": "787-680-7253", "Calling Notes": "Discuss omnichannel strategies for showrooms and online presence." },
+            { "Business Name": "Rooms To Go Hato Rey Showroom", "Category": "Furniture Retailer", "Address": "CALLE CALAF # 525, Hato Rey, PR 918", "Phone Number": "787-764-6545", "Calling Notes": "Offer visual content marketing for furniture collections." },
+            { "Business Name": "Ibérica Puerto Rico", "Category": "Independent Furniture Store", "Address": "#312 and #301 Avenida Constitución, San Juan, PR", "Phone Number": "+1 (787) 509-4663", "Calling Notes": "Focus on high-end design marketing and brand storytelling." },
+            { "Business Name": "Autogermana BMW", "Category": "Car Dealership (BMW)", "Address": "298 Avenida Carlos E. Chardón, San Juan, PR 00919", "Phone Number": "(855) 865-0826 (Sales)", "Calling Notes": "Luxury brand, discuss digital campaigns for new models and certified pre-owned vehicles." },
+            { "Business Name": "Triangle Chrysler Jeep Dodge Ram FIAT Del Oeste", "Category": "Car Dealership (Multi-brand)", "Address": "Carr. 2, Av. Eugenio María de Hostos #301 - Mayagüez, PR 00680", "Phone Number": "787-805-3000 (Main)", "Calling Notes": "Offer integrated marketing for diverse brands and financing options." },
+            { "Business Name": "Triangle Honda 65", "Category": "Car Dealership (Honda)", "Address": "65th Infantry Avenue, San Juan, PR 00924", "Phone Number": "(787) 418-1049 (Main)", "Calling Notes": "Focus on service and parts marketing, and local community engagement." },
+            { "Business Name": "Triangle Toyota de San Juan", "Category": "Car Dealership (Toyota)", "Address": "223 Marginal, John F. Kennedy Bechara, San Juan, PR 00920", "Phone Number": "(787) 304-1634 (Sales)", "Calling Notes": "Suggest campaigns for new Toyota models and competitive financing." },
+            { "Business Name": "Alberic Auto Bayamon", "Category": "Car Dealership", "Address": "Carr #2 km, 16.1, Toa Baja, PR 00949", "Phone Number": "(787) 339-5114", "Calling Notes": "Discuss local sales promotions and inventory management." },
+            { "Business Name": "Alberic Colon Chrysler", "Category": "Car Dealership (Chrysler)", "Address": "Ave. Kennedy Marginal Bechara Carr #2 Km. 3.4 San Juan, PR 00936-8320", "Phone Number": "787-339-2224", "Calling Notes": "Propose digital advertising for specific Chrysler models." },
+            { "Business Name": "Alberic Colon Mitsubishi", "Category": "Car Dealership (Mitsubishi)", "Address": "Carr #1 Km. 30.3, Caguas, PR 00726", "Phone Number": "787-286-2222", "Calling Notes": "Offer marketing for new Mitsubishi vehicles and service specials." },
+            { "Business Name": "All Brand Auto", "Category": "Car Dealership (Used Cars)", "Address": "Urb. Jardines de Caparra, PR2, Bayamón, PR 00959", "Phone Number": "787-946-7575", "Calling Notes": "Focus on online inventory promotion and used car sales." },
+            { "Business Name": "Ambar Infiniti San Juan", "Category": "Car Dealership (Infiniti)", "Address": "445 Avenida John F. Kennedy, San Juan, PR 00920 – 1619", "Phone Number": "787-620-0888", "Calling Notes": "Luxury brand, discuss targeted marketing for premium vehicles." },
+            { "Business Name": "Atlantic Toyota Hatillo", "Category": "Car Dealership (Toyota)", "Address": "Carr. # 2, Hatillo, PR 00659", "Phone Number": "+1 888-303-3897", "Calling Notes": "Suggest regional marketing for Toyota models." },
+            { "Business Name": "Autos Vega Ford", "Category": "Car Dealership (Ford)", "Address": "227 Marginal JF Kennedy, San Juan, PR 00920", "Phone Number": "(787) 782-4030", "Calling Notes": "Discuss digital presence for Ford sales and service." }
+        ];
+
+        const leadsTableBody = document.getElementById('leadsTableBody');
+        const categoryFilter = document.getElementById('categoryFilter');
+        const searchBar = document.getElementById('searchBar');
+        const noResultsMessage = document.getElementById('noResults');
+        const whatsappModal = document.getElementById('whatsappModal');
+        const whatsappMessageTextarea = document.getElementById('whatsappMessageTextarea');
+        const loader = document.getElementById('loader');
+
+        function renderLeads(filteredLeads) {
+            leadsTableBody.innerHTML = '';
+            if (filteredLeads.length === 0) {
+                noResultsMessage.classList.remove('hidden');
+                return;
+            }
+            noResultsMessage.classList.add('hidden');
+
+            filteredLeads.forEach((lead, index) => {
+                const row = document.createElement('tr');
+                row.classList.add(index % 2 === 0 ? 'table-row-even' : 'table-row-odd');
+
+                row.innerHTML = `
+                    <td class="py-3 px-4">${lead['Business Name']}</td>
+                    <td class="py-3 px-4">${lead['Category']}</td>
+                    <td class="py-3 px-4">${lead['Address']}</td>
+                    <td class="py-3 px-4">${lead['Phone Number']}</td>
+                    <td class="py-3 px-4">${lead['Calling Notes']}</td>
+                    <td class="py-3 px-4 flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2">
+                        <button class="btn-primary text-xs" onclick="copyPhoneNumber('${lead['Phone Number']}')">Copy Phone</button>
+                        <button class="btn-primary text-xs" onclick="generateWhatsAppMessage('${lead['Business Name']}', '${lead['Category']}', '${lead['Calling Notes']}')">✨ Generate WhatsApp</button>
+                    </td>
+                `;
+                leadsTableBody.appendChild(row);
+            });
+        }
+
+        function filterAndSearchLeads() {
+            const selectedCategory = categoryFilter.value;
+            const searchTerm = searchBar.value.toLowerCase();
+
+            const filtered = leadsData.filter(lead => {
+                const matchesCategory = selectedCategory === 'All' || lead['Category'] === selectedCategory;
+                const matchesSearch = lead['Business Name'].toLowerCase().includes(searchTerm) ||
+                                      lead['Category'].toLowerCase().includes(searchTerm) ||
+                                      lead['Address'].toLowerCase().includes(searchTerm) ||
+                                      lead['Phone Number'].toLowerCase().includes(searchTerm) ||
+                                      lead['Calling Notes'].toLowerCase().includes(searchTerm);
+                return matchesCategory && matchesSearch;
+            });
+            renderLeads(filtered);
+        }
+
+        function copyPhoneNumber(phoneNumber) {
+            const tempInput = document.createElement('input');
+            tempInput.value = phoneNumber;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            try {
+                document.execCommand('copy');
+                showCustomMessage('Phone number copied to clipboard: ' + phoneNumber);
+            } catch (err) {
+                console.error('Failed to copy text: ', err);
+                showCustomMessage('Failed to copy phone number. Please copy manually: ' + phoneNumber);
+            }
+            document.body.removeChild(tempInput);
+        }
+
+        function showCustomMessage(message) {
+            // A simple custom message display (can be enhanced with a proper modal)
+            const messageDiv = document.createElement('div');
+            messageDiv.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background-color: #333;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 5px;
+                z-index: 1001;
+                opacity: 0;
+                transition: opacity 0.5s ease-in-out;
+            `;
+            messageDiv.textContent = message;
+            document.body.appendChild(messageDiv);
+
+            setTimeout(() => {
+                messageDiv.style.opacity = 1;
+            }, 10);
+
+            setTimeout(() => {
+                messageDiv.style.opacity = 0;
+                messageDiv.addEventListener('transitionend', () => messageDiv.remove());
+            }, 3000);
+        }
+
+
+        async function generateWhatsAppMessage(businessName, category, callingNotes) {
+            showWhatsAppModal();
+            whatsappMessageTextarea.value = ''; // Clear previous message
+            loader.classList.remove('hidden'); // Show loader
+
+            const prompt = `As a marketing expert, draft a concise and persuasive WhatsApp message for a marketing agency selling services to a ${category} business named ${businessName}. The goal is to set up a brief call to discuss their marketing needs. Incorporate the following key points/notes: '${callingNotes}'. Make the message friendly and professional, and include a clear call to action. Keep it under 150 words.`;
+
+            let chatHistory = [];
+            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+
+            const payload = { contents: chatHistory };
+            const apiKey = ""; // If you want to use models other than gemini-2.0-flash or imagen-3.0-generate-002, provide an API key here. Otherwise, leave this as-is.
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const text = result.candidates[0].content.parts[0].text;
+                    whatsappMessageTextarea.value = text;
+                } else {
+                    whatsappMessageTextarea.value = "Failed to generate message. Please try again.";
+                    console.error("Gemini API response structure unexpected:", result);
+                }
+            } catch (error) {
+                whatsappMessageTextarea.value = "Error generating message. Please check your network connection or API key.";
+                console.error("Error calling Gemini API:", error);
+            } finally {
+                loader.classList.add('hidden'); // Hide loader
+            }
+        }
+
+        function showWhatsAppModal() {
+            whatsappModal.classList.remove('hidden');
+        }
+
+        function hideWhatsAppModal() {
+            whatsappModal.classList.add('hidden');
+        }
+
+        function copyToClipboard(elementId) {
+            const textarea = document.getElementById(elementId);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                showCustomMessage('Message copied to clipboard!');
+            } catch (err) {
+                console.error('Failed to copy text: ', err);
+                showCustomMessage('Failed to copy message. Please copy manually.');
+            }
+        }
+
+        categoryFilter.addEventListener('change', filterAndSearchLeads);
+        searchBar.addEventListener('input', filterAndSearchLeads);
+
+        // Initial render
+        document.addEventListener('DOMContentLoaded', () => {
+            filterAndSearchLeads();
+        });
+    </script>
+</body>
+</html>
