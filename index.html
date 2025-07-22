@@ -257,7 +257,9 @@
     </div>
 
     <script>
-        // IMPORTANT: Replace "curl "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent" \
+        // IMPORTANT: Paste your actual Gemini API key here.
+        // Get your API key from https://aistudio.google.com/app/apikey
+        const GEMINI_API_KEY = "curl "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent" \
   -H 'Content-Type: application/json' \
   -H 'X-goog-api-key: GEMINI_API_KEY' \
   -X POST \
@@ -271,9 +273,7 @@
         ]
       }
     ]
-  }'" with your actual Gemini API key.
-        // Get your API key from https://aistudio.google.com/app/apikey
-        const GEMINI_API_KEY = ""; 
+  }'"; 
 
         let leadsData = [
             { "Business Name": "Metro Pavia Clinic Arecibo", "Category": "Doctor Office", "Address": "Zona Industrial Victor Rojas 2, Arecibo", "Phone Number": "787-650-0020", "Website": "Yes", "Calling Notes": "Discuss patient acquisition strategies for specialized procedures.", "IsWarmLead": false },
@@ -576,3 +576,5 @@
     </script>
 </body>
 </html>
+
+
